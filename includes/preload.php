@@ -172,20 +172,106 @@ function gw_preload_sync_cron() {
 add_action( 'init', 'gw_preload_sync_cron' );
 
 /**
- * Cron tick. The batched runner is added next; for now it only records that the schedule is alive, so turning
- * the preloader on is safe and does no fetching yet.
+ * Current progress, with sensible defaults.
+ *
+ * @return array queue (list of "user\tjob"), cursor, done, total, started, last_run, finished.
+ */
+function gw_preload_state() {
+	return wp_parse_args(
+		(array) get_option( GW_PRELOAD_STATE, array() ),
+		array( 'queue' => array(), 'cursor' => 0, 'done' => 0, 'total' => 0, 'started' => 0, 'last_run' => 0, 'finished' => 0 )
+	);
+}
+
+/**
+ * Build the full queue of "user<TAB>job" entries across every warmed account. Called once per cycle; the list
+ * of years it needs is itself cached, so building the queue is cheap after the first time.
+ *
+ * @return array
+ */
+function gw_preload_build_queue() {
+	$queue = array();
+	foreach ( gw_preload_users() as $user ) {
+		foreach ( gw_preload_jobs( $user ) as $job ) {
+			$queue[] = $user . "\t" . $job;
+		}
+	}
+	return $queue;
+}
+
+/**
+ * Warm up to $limit entries, stopping early if GitHub's rate limit kicks in. Safe to call from cron or a
+ * button. Builds the queue when there isn't one, and marks the cycle finished when it reaches the end.
+ *
+ * @param int $limit How many entries to warm this call.
+ * @return array The updated state.
+ */
+function gw_preload_process( $limit ) {
+	$state = gw_preload_state();
+	if ( empty( $state['queue'] ) || $state['cursor'] >= count( $state['queue'] ) ) {
+		// Start a fresh cycle.
+		$state['queue']    = gw_preload_build_queue();
+		$state['cursor']   = 0;
+		$state['done']     = 0;
+		$state['total']    = count( $state['queue'] );
+		$state['started']  = time();
+		$state['finished'] = 0;
+	}
+	$state['last_run'] = time();
+	$processed = 0;
+	while ( $processed < $limit && $state['cursor'] < count( $state['queue'] ) ) {
+		if ( gw_rate_limited() ) {
+			break; // Come back after the limit resets.
+		}
+		list( $user, $job ) = array_pad( explode( "\t", $state['queue'][ $state['cursor'] ], 2 ), 2, '' );
+		if ( '' !== $user && '' !== $job ) {
+			gw_preload_run_job( $user, $job );
+		}
+		$state['cursor']++;
+		$state['done']++;
+		$processed++;
+	}
+	if ( $state['cursor'] >= count( $state['queue'] ) && $state['total'] > 0 ) {
+		$state['finished'] = time();
+	}
+	update_option( GW_PRELOAD_STATE, $state, false );
+	return $state;
+}
+
+/**
+ * Cron tick: warm one batch, pacing well under GitHub's limits (the default 3 per 15 minutes is 12 an hour,
+ * comfortably below the 60 an hour GitHub allows without a token).
  *
  * @return void
  */
 function gw_preload_tick() {
-	if ( ! gw_preload_settings()['enabled'] ) {
+	$settings = gw_preload_settings();
+	if ( ! $settings['enabled'] || gw_rate_limited() ) {
 		return;
 	}
-	$state             = (array) get_option( GW_PRELOAD_STATE, array() );
-	$state['last_run'] = time();
-	update_option( GW_PRELOAD_STATE, $state, false );
+	gw_preload_process( max( 1, (int) $settings['batch'] ) );
 }
 add_action( GW_PRELOAD_HOOK, 'gw_preload_tick' );
+
+/**
+ * A short, human summary of where the preloader is at, for the settings page.
+ *
+ * @return array enabled, total, done, percent, finished (ts), last_run (ts), rate_reset (ts).
+ */
+function gw_preload_status() {
+	$s     = gw_preload_settings();
+	$state = gw_preload_state();
+	$total = (int) $state['total'];
+	return array(
+		'enabled'    => (bool) $s['enabled'],
+		'total'      => $total,
+		'done'       => min( (int) $state['cursor'], $total ),
+		'percent'    => $total ? (int) round( 100 * min( $state['cursor'], $total ) / $total ) : 0,
+		'finished'   => (int) $state['finished'],
+		'last_run'   => (int) $state['last_run'],
+		'rate_reset' => gw_rate_reset(),
+	);
+}
 
 /**
  * Stop the schedule when the plugin is deactivated.
