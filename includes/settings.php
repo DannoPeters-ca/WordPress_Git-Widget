@@ -90,7 +90,7 @@ function gw_settings_page() {
 				<tr>
 					<th><?php esc_html_e( 'Preload in the background', 'git-widget' ); ?></th>
 					<td><label><input type="checkbox" name="preload_enabled" value="1" <?php checked( $gw_pl['enabled'] ); ?>> <?php esc_html_e( 'Keep every year and section ready in the cache', 'git-widget' ); ?></label>
-						<p class="description"><?php esc_html_e( 'Warms a few entries every 15 minutes so pages never wait on GitHub and switching the year is instant. Gentle on GitHub\'s rate limit.', 'git-widget' ); ?></p></td>
+						<p class="description"><?php esc_html_e( 'Warms a few entries when the site is visited, so pages never wait on GitHub and switching the year is instant. An idle site makes no calls, and it stays gentle on GitHub\'s rate limit.', 'git-widget' ); ?></p></td>
 				</tr>
 				<tr>
 					<th><label for="gw-batch"><?php esc_html_e( 'Entries per run', 'git-widget' ); ?></label></th>
@@ -118,6 +118,12 @@ function gw_settings_page() {
 				</tr>
 			</table>
 			<?php submit_button( __( 'Save preloading', 'git-widget' ), 'secondary', 'submit', false ); ?>
+		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:-1em">
+			<?php wp_nonce_field( 'gw_prime' ); ?>
+			<input type="hidden" name="action" value="gw_prime">
+			<?php submit_button( __( 'Prime cache now', 'git-widget' ), 'secondary', 'submit', false ); ?>
+			<p class="description"><?php esc_html_e( 'Warms a chunk right away; the rest keeps filling in as people visit the site.', 'git-widget' ); ?></p>
 		</form>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'gw_flush' ); ?>
