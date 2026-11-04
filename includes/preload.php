@@ -13,10 +13,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** How recently the site must have been viewed for the preloader to do anything (so an idle site is silent). */
+const GW_VIEW_WINDOW = 1800; // 30 minutes.
+
 /** Option names. */
 const GW_PRELOAD_OPTION = 'gw_preload';       // Settings: enabled, batch.
 const GW_PRELOAD_STATE  = 'gw_preload_state'; // Progress: queue, done, cursor, last_run, started.
 const GW_PRELOAD_HOOK   = 'gw_preload_tick';  // Cron event.
+
+/**
+ * Note that someone just viewed the front end, so the preloader knows the site is in use. Written at most once
+ * every couple of minutes to keep it cheap, and never from the admin.
+ *
+ * @return void
+ */
+function gw_note_view() {
+	if ( is_admin() ) {
+		return;
+	}
+	$now  = time();
+	$last = (int) get_option( 'gw_last_view', 0 );
+	if ( $now - $last > 120 ) {
+		update_option( 'gw_last_view', $now, true );
+	}
+}
+add_action( 'template_redirect', 'gw_note_view' );
+
+/**
+ * Whether the site has been viewed recently enough for the preloader to run. This is what keeps an idle site
+ * from making any GitHub calls: no recent view, no warming.
+ *
+ * @return bool
+ */
+function gw_recently_viewed() {
+	return ( time() - (int) get_option( 'gw_last_view', 0 ) ) <= GW_VIEW_WINDOW;
+}
 
 /**
  * Preloader settings merged with defaults.
@@ -208,7 +239,12 @@ function gw_preload_build_queue() {
  */
 function gw_preload_process( $limit ) {
 	$state = gw_preload_state();
-	if ( empty( $state['queue'] ) || $state['cursor'] >= count( $state['queue'] ) ) {
+	$done  = ! empty( $state['queue'] ) && $state['cursor'] >= count( $state['queue'] );
+	// How long a warmed cycle stays good: the cache lifetime. Re-warm a little before it lapses.
+	$ttl     = max( 1, (int) gw_settings()['cache_hours'] ) * HOUR_IN_SECONDS;
+	$refresh = max( 0, $ttl - 15 * MINUTE_IN_SECONDS );
+	$start_new = empty( $state['queue'] ) || ( $done && ( time() - (int) $state['started'] ) >= $refresh );
+	if ( $start_new ) {
 		// Start a fresh cycle.
 		$state['queue']    = gw_preload_build_queue();
 		$state['cursor']   = 0;
@@ -216,6 +252,11 @@ function gw_preload_process( $limit ) {
 		$state['total']    = count( $state['queue'] );
 		$state['started']  = time();
 		$state['finished'] = 0;
+	} elseif ( $done ) {
+		// Finished and not yet due to refresh: nothing to do this run.
+		$state['last_run'] = time();
+		update_option( GW_PRELOAD_STATE, $state, false );
+		return $state;
 	}
 	$state['last_run'] = time();
 	$processed = 0;
@@ -246,7 +287,8 @@ function gw_preload_process( $limit ) {
  */
 function gw_preload_tick() {
 	$settings = gw_preload_settings();
-	if ( ! $settings['enabled'] || gw_rate_limited() ) {
+	// Only ever warm when the site has actually been visited, and never while rate-limited.
+	if ( ! $settings['enabled'] || gw_rate_limited() || ! gw_recently_viewed() ) {
 		return;
 	}
 	gw_preload_process( max( 1, (int) $settings['batch'] ) );
@@ -282,3 +324,23 @@ function gw_preload_deactivate() {
 	wp_clear_scheduled_hook( GW_PRELOAD_HOOK );
 }
 register_deactivation_hook( GW_FILE, 'gw_preload_deactivate' );
+
+/**
+ * "Prime cache now": warm a chunk immediately from the admin. Capped so one click can't run long or blow the
+ * rate limit; the rest fills in on visits. This is an explicit admin action, so it ignores the view gate.
+ *
+ * @return void Redirects back to the settings page.
+ */
+function gw_preload_prime_now() {
+	if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'gw_prime' ) ) {
+		wp_die( 'Not allowed' );
+	}
+	if ( gw_preload_settings()['enabled'] && ! gw_rate_limited() ) {
+		gw_preload_process( 15 );
+	}
+	$msg = gw_rate_limited() ? 'GitHub is rate-limiting right now; the rest will fill in shortly.' : 'Warmed a chunk of the cache.';
+	set_transient( 'gw_notice', array( 'success', $msg ), 60 );
+	wp_safe_redirect( admin_url( 'options-general.php?page=git-widget' ) );
+	exit;
+}
+add_action( 'admin_post_gw_prime', 'gw_preload_prime_now' );
