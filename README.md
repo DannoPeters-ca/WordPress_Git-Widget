@@ -125,6 +125,7 @@ The tests run the same way, outside WordPress and without the network:
 composer install      # PHPUnit, dev only
 vendor/bin/phpunit
 dev/screenshots.sh    # regenerates the screenshots above (needs Chrome)
+GW_TOKEN=... php dev/capture-sample.php USERNAME   # refresh dev/sample.json with a real account
 ```
 
 CI lints every PHP file and runs the tests on PHP 7.4 to 8.4.
