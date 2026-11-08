@@ -136,6 +136,16 @@ Git Widget is free software under the [GNU GPL, version 3 or later](LICENSE), wi
 
 If the credit is removed, the plugin restores it and, in the WordPress dashboard, lets the site's administrator know it's required.
 
+## Sharing a look and a year across widgets
+
+If a page has several widgets, you usually want them to match. Each widget's **Match other widgets** setting can be:
+
+- **Use this widget's own style** (default)
+- **Match the site style** — one look set on Settings > Git Widget (and, with Pro, its colours on Settings > Git Widget Pro)
+- **Match the first widget on this page** — the rest of the page follows the first one
+
+A widget's **year** can likewise be its own or **follow the page**. Turn on *Picking a year updates the page* on a calendar's year picker, and when a visitor picks a year it reloads with `?gw_year=` so every widget set to follow the page shows that year together.
+
 ## How this was built
 
 I use AI collaborative coding, code review and unit testing as part of my workflow, and all three were used in the creation and maintenance of this repo. The design, direction and final say are mine.
