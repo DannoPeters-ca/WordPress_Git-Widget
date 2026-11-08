@@ -9,6 +9,7 @@
 // Minimal stand-ins for the WordPress functions the plugin uses.
 define( 'ABSPATH', __DIR__ );
 define( 'HOUR_IN_SECONDS', 3600 );
+define( 'MINUTE_IN_SECONDS', 60 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WEEK_IN_SECONDS', 604800 );
 define( 'YEAR_IN_SECONDS', 31536000 );
@@ -37,7 +38,7 @@ function _n( $s, $p, $n ) { return 1 == $n ? $s : $p; }
 function number_format_i18n( $n ) { return number_format( $n ); }
 function wp_enqueue_style() {}
 function wp_enqueue_script() {}
-function add_action() {}
+function add_action() {} function register_deactivation_hook() {} function is_admin() { return false; } function wp_next_scheduled() { return false; } function wp_schedule_event() {} function wp_clear_scheduled_hook() {}
 function add_shortcode() {}
 function shortcode_atts( $d, $a ) { return array_merge( $d, array_intersect_key( $a, $d ) ); }
 function plugin_dir_path( $f ) { return dirname( $f ) . '/'; }
