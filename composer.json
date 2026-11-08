@@ -1,0 +1,16 @@
+{
+    "name": "dannopeters/git-widget",
+    "description": "Development tooling for the Git Widget WordPress plugin (not needed to run the plugin).",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
