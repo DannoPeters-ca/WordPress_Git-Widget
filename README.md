@@ -2,6 +2,21 @@
 
 I wanted my GitHub activity on my own website without screenshots that go stale the day after I take them, so I built this. Git Widget pulls your profile, contribution calendar, charts, achievements and more straight from GitHub and drops them into any page. It works as a Beaver Builder module or a simple `[git_widget]` shortcode, and Gutenberg and Elementor are next on the list.
 
+<p align="center">
+  <img src="docs/screenshots/profile.png" alt="Profile card with organisations" width="48%">
+  <img src="docs/screenshots/achievements.png" alt="Achievement badges" width="48%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/calendar.png" alt="Contribution calendar, light" width="100%">
+  <img src="docs/screenshots/calendar-dark.png" alt="Contribution calendar, dark" width="100%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/overview.png" alt="Activity overview tiles and contribution types chart" width="100%">
+  <img src="docs/screenshots/languages.png" alt="Top languages donut and top repositories" width="100%">
+</p>
+
+<sub>Rendered from the sample data in <code>dev/sample.json</code>. Regenerate with <code>dev/screenshots.sh</code>.</sub>
+
 ## What it Does
 
 Pick any of these sections, in any order, in one widget or spread across several:
@@ -104,6 +119,16 @@ GitHub bios are one long line, so a lot of us pad them with underscores to push 
 
 Want to poke at it without a WordPress install? Run `php dev/preview.php > preview.html` and open it. You'll get every section rendered with sample data, side by side on a light and a dark background.
 
+The tests run the same way, outside WordPress and without the network:
+
+```sh
+composer install      # PHPUnit, dev only
+vendor/bin/phpunit
+dev/screenshots.sh    # regenerates the screenshots above (needs Chrome)
+```
+
+CI lints every PHP file and runs the tests on PHP 7.4 to 8.4.
+
 ## Feedback
 
 Made by [@DannoPeters](https://github.com/DannoPeters) in 🇨🇦. Suggestions and bug reports are very welcome, either as an [issue](https://github.com/DannoPeters/WordPress_Git-Widget/issues) or through [DannoPeters.ca](https://dannopeters.ca).
@@ -158,3 +183,4 @@ A widget's **year** can likewise be its own or **follow the page**. Turn on *Pic
 ## How this was built
 
 I use AI collaborative coding, code review and unit testing as part of my workflow, and all three were used in the creation and maintenance of this repo. The design, direction and final say are mine.
+
