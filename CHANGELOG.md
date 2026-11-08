@@ -1,16 +1,13 @@
 # Changelog
 
-## 0.4.0 (2026-11-01)
+## 0.5.0 (2026-11-08)
 
-- Share a look across widgets: each widget can use its own style, match a site-wide style (set on Settings > Git Widget), or match the first widget on the page
-- A site-wide style (accent, background, layout, contribution-types chart) on the settings page
-- A widget can follow a page-wide year, and a visitor year picker can be set to change the year for every following widget on the page at once (through a ?gw_year= link)
-
-## 0.3.0 (2026-11-01)
-
-- Simpler Beaver Builder settings: each part of the widget now has its own Show / Hide switch, and a part's options only appear once it is turned on
-- Options for a part you are not showing stay out of the way, so the panel only ever shows what is relevant
-- Widgets saved before this update keep working unchanged
+- Simpler Beaver Builder settings: each part of the widget has its own Show / Hide switch, and a part's options appear only once it is turned on
+- Share a look across widgets: use a widget's own style, a site-wide style (Settings > Git Widget), or match the first widget on the page
+- A widget can follow a page-wide year, and a visitor year picker can change the year for every following widget at once (through a ?gw_year= link)
+- Optional background preloading so every year and section a visitor might open is already cached: pages never wait on GitHub and switching the year is instant (#33)
+- Only ever fetches when the site is actually being viewed, so an idle site makes no GitHub calls at all (#36)
+- Warms a few entries at a time, pausing near GitHub's rate limit, and re-warms shortly before the cache expires; with an enable switch, status line and "Prime cache now" on the settings page
 
 ## 0.2.1 (2026-10-31)
 
