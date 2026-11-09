@@ -21,10 +21,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return mixed|WP_Error
  */
 function gw_cached( $key, $make ) {
+	// Per-request memo: several widgets on one page asking for the same thing resolve it once, and a failed
+	// call isn't retried by each widget. The transient below is the copy shared across widgets and requests.
+	static $memo = array();
 	$tkey = 'gw_' . md5( $key );
-	$hit  = get_transient( $tkey );
+	if ( array_key_exists( $tkey, $memo ) ) {
+		return $memo[ $tkey ];
+	}
+	$hit = get_transient( $tkey );
 	if ( false !== $hit ) {
-		return $hit;
+		return $memo[ $tkey ] = $hit;
 	}
 	$value = $make();
 	if ( ! is_wp_error( $value ) ) {
@@ -36,7 +42,7 @@ function gw_cached( $key, $make ) {
 			update_option( 'gw_cache_keys', array_slice( $keys, -500 ), false );
 		}
 	}
-	return $value;
+	return $memo[ $tkey ] = $value;
 }
 
 /**
