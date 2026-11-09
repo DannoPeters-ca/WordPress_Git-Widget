@@ -241,7 +241,7 @@ function gw_preload_process( $limit ) {
 	$state = gw_preload_state();
 	$done  = ! empty( $state['queue'] ) && $state['cursor'] >= count( $state['queue'] );
 	// How long a warmed cycle stays good: the cache lifetime. Re-warm a little before it lapses.
-	$ttl     = max( 1, (int) gw_settings()['cache_hours'] ) * HOUR_IN_SECONDS;
+	$ttl     = gw_update_minutes() * MINUTE_IN_SECONDS;
 	$refresh = max( 0, $ttl - 15 * MINUTE_IN_SECONDS );
 	$start_new = empty( $state['queue'] ) || ( $done && ( time() - (int) $state['started'] ) >= $refresh );
 	if ( $start_new ) {
