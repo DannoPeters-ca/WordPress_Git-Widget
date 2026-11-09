@@ -3,7 +3,7 @@
  * Plugin Name: Git Widget
  * Plugin URI:  https://github.com/DannoPeters/WordPress_Git-Widget
  * Description: Embed your GitHub profile, contribution calendar, activity charts, achievements and organisations anywhere on your site. Works as a Beaver Builder module or the [git_widget] shortcode.
- * Version:     0.5.0
+ * Version:     0.6.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author:      Danno Peters
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** Plugin version, used to version assets. */
-define( 'GW_VERSION', '0.5.0' );
+define( 'GW_VERSION', '0.6.0' );
 /** This plugin's main file, for activation and deactivation hooks. */
 define( 'GW_FILE', __FILE__ );
 /** Absolute path to this plugin's folder, with a trailing slash. */
