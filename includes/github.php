@@ -20,6 +20,59 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param callable $make Builds the value; return a WP_Error to skip caching.
  * @return mixed|WP_Error
  */
+/**
+ * The shortest update frequency allowed, in minutes. Free sites start at 24 hours; Git Widget Pro lowers this
+ * (down to 5 minutes) through the filter, the same way it unlocks other Pro options.
+ *
+ * @return int Minutes.
+ */
+function gw_update_frequency_min() {
+	return max( 1, (int) apply_filters( 'gw_update_frequency_min', DAY_IN_SECONDS / MINUTE_IN_SECONDS ) );
+}
+
+/**
+ * How often GitHub data is refreshed, in minutes. This is both the cache lifetime and the preloader's re-warm
+ * interval. Clamped to the allowed minimum, so if Pro is removed a shorter setting snaps back to 24 hours.
+ *
+ * @return int Minutes.
+ */
+function gw_update_minutes() {
+	$saved = (int) ( gw_settings()['update_minutes'] ?? 0 );
+	$min   = gw_update_frequency_min();
+	return max( $min, $saved > 0 ? $saved : $min );
+}
+
+/**
+ * Note that a real request to GitHub just went out, for the "how often are we fetching" view. Kept to the
+ * last 500 timestamps so it stays small; fetches are rare once caching and view-gating are on.
+ *
+ * @return void
+ */
+function gw_note_fetch() {
+	$log   = (array) get_option( 'gw_fetch_log', array() );
+	$log[] = time();
+	update_option( 'gw_fetch_log', array_slice( $log, -500 ), false );
+}
+
+/**
+ * A summary of recent GitHub fetching for the settings page.
+ *
+ * @return array hour, day, total, last (timestamp or 0).
+ */
+function gw_fetch_stats() {
+	$log = array_map( 'intval', (array) get_option( 'gw_fetch_log', array() ) );
+	$now = time();
+	$in  = function ( $since ) use ( $log, $now ) {
+		return count( array_filter( $log, function ( $t ) use ( $now, $since ) { return $t >= $now - $since; } ) );
+	};
+	return array(
+		'hour'  => $in( HOUR_IN_SECONDS ),
+		'day'   => $in( DAY_IN_SECONDS ),
+		'total' => count( $log ),
+		'last'  => $log ? max( $log ) : 0,
+	);
+}
+
 function gw_cached( $key, $make ) {
 	// Per-request memo: several widgets on one page asking for the same thing resolve it once, and a failed
 	// call isn't retried by each widget. The transient below is the copy shared across widgets and requests.
@@ -34,7 +87,7 @@ function gw_cached( $key, $make ) {
 	}
 	$value = $make();
 	if ( ! is_wp_error( $value ) ) {
-		set_transient( $tkey, $value, (int) gw_settings()['cache_hours'] * HOUR_IN_SECONDS );
+		set_transient( $tkey, $value, gw_update_minutes() * MINUTE_IN_SECONDS );
 		// Keep a list of keys so "Refresh GitHub data now" can clear them.
 		$keys = (array) get_option( 'gw_cache_keys', array() );
 		if ( ! in_array( $tkey, $keys, true ) ) {
@@ -81,6 +134,7 @@ function gw_get( $url, $json = true, $auth = true ) {
 	if ( $auth && $token && false !== strpos( $url, 'api.github.com' ) ) {
 		$headers['Authorization'] = 'Bearer ' . $token;
 	}
+	gw_note_fetch();
 	$resp = wp_remote_get( $url, array( 'timeout' => 15, 'headers' => $headers ) );
 	if ( is_wp_error( $resp ) ) {
 		return $resp;
@@ -140,6 +194,7 @@ function gw_graphql( $query, $variables ) {
 	if ( ! $token ) {
 		return new WP_Error( 'gw_no_token', 'A GitHub token is needed for this section.' );
 	}
+	gw_note_fetch();
 	$resp = wp_remote_post(
 		'https://api.github.com/graphql',
 		array(

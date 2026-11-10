@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 (2026-11-09)
+
+- Update frequency setting: how often GitHub data refreshes (and the preloader re-warms). Free sites refresh at most once a day; Git Widget Pro allows down to every 5 minutes (#34)
+- Advanced panel on the settings page showing how often the plugin has fetched from GitHub (last hour, last 24 hours, total, last fetch) (#34)
+- Several widgets on a page now share a single fetch per request, and a failed call isn't retried by each widget (#35)
+
 ## 0.5.0 (2026-11-08)
 
 - Simpler Beaver Builder settings: each part of the widget has its own Show / Hide switch, and a part's options appear only once it is turned on

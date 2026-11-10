@@ -17,13 +17,40 @@ const GW_OPTION = 'gw_settings';
  *
  * @return array username, token, cache_hours.
  */
+/**
+ * The update-frequency choices for the settings menu. Everything from 24 hours up is always available; Git
+ * Widget Pro adds the shorter intervals.
+ *
+ * @return array Minutes => label.
+ */
+function gw_update_frequency_options() {
+	$opts = array(
+		1440  => __( 'Once a day', 'git-widget' ),
+		2880  => __( 'Every 2 days', 'git-widget' ),
+		10080 => __( 'Once a week', 'git-widget' ),
+		43200 => __( 'Once a month', 'git-widget' ),
+	);
+	if ( function_exists( 'gw_is_pro' ) && gw_is_pro() ) {
+		$opts = array(
+			5   => __( 'Every 5 minutes', 'git-widget' ),
+			15  => __( 'Every 15 minutes', 'git-widget' ),
+			30  => __( 'Every 30 minutes', 'git-widget' ),
+			60  => __( 'Every hour', 'git-widget' ),
+			360 => __( 'Every 6 hours', 'git-widget' ),
+			720 => __( 'Every 12 hours', 'git-widget' ),
+		) + $opts;
+	}
+	return $opts;
+}
+
 function gw_settings() {
 	return wp_parse_args(
 		get_option( GW_OPTION, array() ),
 		array(
-			'username'    => '',
-			'token'       => '',
-			'cache_hours' => 6,
+			'username'       => '',
+			'token'          => '',
+			'cache_hours'    => 6,
+			'update_minutes' => 1440,
 		)
 	);
 }
@@ -88,9 +115,14 @@ function gw_settings_page() {
 						<p class="description">Needed for contribution type statistics and yearly charts. A fine-grained token with <strong>no permissions</strong> is enough: it only reads public data. Without one, the profile, organisations, calendar and achievements still work.</p></td>
 				</tr>
 				<tr>
-					<th><label for="gw-cache">Refresh every</label></th>
-					<td><input id="gw-cache" name="cache_hours" type="number" min="1" max="168" value="<?php echo (int) $s['cache_hours']; ?>"> hours
-						<p class="description">GitHub data is cached so pages stay fast.</p></td>
+					<th><label for="gw-frequency"><?php esc_html_e( 'Update frequency', 'git-widget' ); ?></label></th>
+					<td><?php $gw_cur = gw_update_minutes(); $gw_opts = gw_update_frequency_options(); if ( ! isset( $gw_opts[ $gw_cur ] ) ) { $gw_opts[ $gw_cur ] = sprintf( __( 'Every %d minutes', 'git-widget' ), $gw_cur ); ksort( $gw_opts ); } ?>
+						<select id="gw-frequency" name="update_minutes">
+							<?php foreach ( $gw_opts as $gw_min => $gw_label ) : ?>
+								<option value="<?php echo (int) $gw_min; ?>" <?php selected( $gw_cur, $gw_min ); ?>><?php echo esc_html( $gw_label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<p class="description"><?php esc_html_e( 'How often GitHub data is refreshed (and how often the preloader re-warms it). Free sites refresh at most once a day; Git Widget Pro allows down to every 5 minutes.', 'git-widget' ); ?></p></td>
 				</tr>
 			</table>
 			<?php submit_button(); ?>
@@ -175,6 +207,32 @@ function gw_settings_page() {
 			<?php submit_button( __( 'Prime cache now', 'git-widget' ), 'secondary', 'submit', false ); ?>
 			<p class="description"><?php esc_html_e( 'Warms a chunk right away; the rest keeps filling in as people visit the site.', 'git-widget' ); ?></p>
 		</form>
+		<details class="gw-advanced" style="margin:1em 0">
+			<summary style="cursor:pointer;font-weight:600"><?php esc_html_e( 'Advanced: GitHub fetch activity', 'git-widget' ); ?></summary>
+			<?php $gw_fs = gw_fetch_stats(); ?>
+			<p class="description" style="margin-top:.6em">
+				<?php
+				printf(
+					/* translators: 1: requests in the last hour, 2: in the last 24 hours, 3: total recorded */
+					esc_html__( 'Requests to GitHub: %1$d in the last hour, %2$d in the last 24 hours, %3$d recorded in total.', 'git-widget' ),
+					(int) $gw_fs['hour'],
+					(int) $gw_fs['day'],
+					(int) $gw_fs['total']
+				);
+				echo '<br>';
+				if ( $gw_fs['last'] ) {
+					printf(
+						/* translators: %s: human time difference, e.g. "3 hours" */
+						esc_html__( 'Last fetch: %s ago.', 'git-widget' ),
+						esc_html( human_time_diff( (int) $gw_fs['last'] ) )
+					);
+				} else {
+					esc_html_e( 'No fetches recorded yet.', 'git-widget' );
+				}
+				?>
+			</p>
+			<p class="description"><?php esc_html_e( 'With caching on, repeated page views reuse stored data instead of calling GitHub, so this stays low.', 'git-widget' ); ?></p>
+		</details>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'gw_flush' ); ?>
 			<input type="hidden" name="action" value="gw_flush">
@@ -209,7 +267,7 @@ function gw_save_settings() {
 	} else {
 		$s                = gw_settings();
 		$s['username']    = sanitize_text_field( wp_unslash( $_POST['username'] ?? '' ) );
-		$s['cache_hours'] = max( 1, min( 168, (int) ( $_POST['cache_hours'] ?? 6 ) ) );
+		$s['update_minutes'] = max( gw_update_frequency_min(), (int) ( $_POST['update_minutes'] ?? 1440 ) );
 		$token            = trim( sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) ) );
 		// Only accept values shaped like a GitHub token, so browser auto-fill can't overwrite it.
 		if ( preg_match( '/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/', $token ) ) {
